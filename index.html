@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>C++ Atomics &amp; I/O Code Library</title>
+<style>
+:root{--bg:#fff;--fg:#1f2328;--mut:#59636e;--bd:#d1d9e0;--card:#fff;--acc:#2557a7;--pill:#fff;--badge:#e6ebf2;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16181c;--fg:#e6e8eb;--mut:#9aa4b0;--bd:#2d333b;--card:#1c1f24;--acc:#4f8ae6;--pill:#1c1f24;--badge:#2d333b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16181c;--fg:#e6e8eb;--mut:#9aa4b0;--bd:#2d333b;--card:#1c1f24;--acc:#4f8ae6;--pill:#1c1f24;--badge:#2d333b;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:24px 16px 48px}
+h1{margin:0 0 4px;font-size:26px}
+.sub{color:var(--mut);margin:0 0 20px}
+.topics{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.topic{background:var(--pill);color:var(--fg);border:1px solid var(--bd);border-radius:8px;padding:10px 20px;font:inherit;font-weight:600;cursor:pointer}
+.topic.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.topic.on .badge{background:rgba(255,255,255,.25)}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--bd);overflow-x:auto;margin-bottom:16px}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:10px 12px;font:inherit;color:var(--mut);cursor:pointer;white-space:nowrap}
+.tab.on{color:var(--fg);border-color:var(--acc);font-weight:600}
+.badge{background:var(--badge);border-radius:10px;padding:0 7px;font-size:12px;margin-left:4px}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.pill{background:var(--pill);color:var(--fg);border:1px solid var(--bd);border-radius:20px;padding:7px 14px;font:inherit;font-size:14px;cursor:pointer}
+.pill.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.head{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;padding:16px}
+.head h2{margin:0 0 4px;font-size:19px}
+.head p{margin:0 0 8px;color:var(--mut)}
+.file{font:12px Consolas,monospace;color:var(--mut)}
+.copy{background:var(--acc);color:#fff;border:0;border-radius:6px;padding:9px 16px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+.editor{display:flex;background:#ffffff;border-top:1px solid var(--bd);overflow-x:auto;font:13.5px/1.6 "Cascadia Code",Consolas,"Courier New",monospace}
+.editor pre{margin:0;padding:12px 0}
+.gut{color:#237893;text-align:right;padding:12px 14px!important;background:#ffffff;border-right:1px solid #e5e5e5;user-select:none;-webkit-user-select:none;position:sticky;left:0}
+.code{color:#000000;padding:12px 20px!important;flex:1;min-width:max-content}
+.c{color:#008000}.s{color:#a31515}.p{color:#af00db}.n{color:#098658}.t{color:#267f99}.k{color:#0000ff}
+.exp{padding:16px 20px 20px;border-top:1px solid var(--bd)}
+.exp h3{margin:0 0 8px;font-size:16px}
+.exp ul{margin:0 0 12px;padding-left:20px}
+.exp li{margin-bottom:6px}
+.exp code{font:13px Consolas,monospace;background:var(--badge);padding:1px 5px;border-radius:4px}
+.outp{margin:0;background:#f5f5f5;color:#1f2328;border:1px solid #d9d9d9;border-radius:6px;padding:12px 14px;font:13px/1.55 "Cascadia Code",Consolas,monospace;overflow-x:auto}
+.onote{margin:8px 0 0;color:var(--mut);font-size:13px}
+.run{font:13px Consolas,monospace;background:var(--badge);padding:8px 10px;border-radius:6px;overflow-x:auto;white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>C++ Code Library</h1>
+<p class="sub">Pick a topic, then a category, then a program. <b>Copy code</b> copies only the code, with no line numbers.</p>
+<div class="topics" id="topics"></div>
+<div class="tabs" id="tabs"></div>
+<div class="pills" id="pills"></div>
+<div class="card">
+  <div class="head"><div><h2 id="t"></h2><p id="d"></p><span class="file" id="f"></span></div><button class="copy" id="cp">Copy code</button></div>
+  <div class="editor"><pre class="gut" id="g"></pre><pre class="code" id="code"></pre></div>
+  <div class="exp"><h3>How it works</h3><ul id="ex"></ul><h3>Build &amp; run</h3><div class="run" id="run"></div><h3 style="margin-top:18px">Output</h3><pre class="outp" id="out"></pre><p class="onote" id="outnote"></p></div>
+</div>
+</div>
+<script>
+const R = (s) => String.raw(s);
+const TOPICS = [
+{name:"Atomic Operations", cats:[
+{name:"Load & Store", items:[
+{title:"Message passing (release/acquire)", file:"a1_message_passing.cpp", desc:"Operation: store + load. A producer publishes a payload and a consumer waits for the signal.",
+code:R`// Message passing: producer publishes data, consumer waits for the flag.
+#include <atomic>
+#include <iostream>
+#include <thread>
+
+std::atomic<int> data{0};   // the payload (the food)
+std::atomic<int> ready{0};  // the signal (the bell)
+
+int main() {
+    std::thread producer([] {
+        data.store(42, std::memory_order_relaxed);  // 1. prepare payload
+        ready.store(1, std::memory_order_release);  // 2. publish: all writes above become visible
+    });
+    std::thread consumer([] {
+        // 3. spin until the producer has rung the bell
+        while (ready.load(std::memory_order_acquire) == 0) {}
+        // 4. acquire saw the release, so data is guaranteed to be 42
+        std::cout << "consumer got " << data.load(std::memory_order_relaxed) << "\n";
+    });
+    producer.join();
+    consumer.join();
+}`,
+ex:["<code>store(release)</code> promises that every write before it is visible to a thread that reads its value with <code>load(acquire)</code>.","The payload itself can be relaxed because the flag carries the ordering.","If both sides were relaxed, ARM could show <code>ready == 1</code> but <code>data == 0</code>.","Real use: handing a finished job, buffer or config object from one thread to another."]},
+{title:"Stop flag (relaxed load/store)", file:"a2_stop_flag.cpp", desc:"Operation: load + store. The main thread tells a background worker to quit.",
+code:R`// Stop flag: a worker loops until main asks it to stop.
+#include <atomic>
+#include <chrono>
+#include <iostream>
+#include <thread>
+
+std::atomic<bool> stop{false};   // plain bool here would be a data race (UB)
+
+int main() {
+    unsigned long loops = 0;
+    std::thread worker([&] {
+        // Relaxed is enough: the flag guards no other data.
+        while (!stop.load(std::memory_order_relaxed)) {
+            ++loops;   // pretend to do work
+        }
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    stop.store(true, std::memory_order_relaxed);   // ask the worker to finish
+    worker.join();                                 // join also makes 'loops' safe to read
+    std::cout << "worker looped " << loops << " times\n";
+}`,
+ex:["The only job of the flag is to be seen eventually, so <code>relaxed</code> is the cheapest correct choice.","<code>join()</code> synchronizes with the thread's end, so reading <code>loops</code> afterwards is safe.","If the worker also had to read data the main thread prepared, you would upgrade to release/acquire.","Real use: shutdown signals, cancel buttons, polling loops."]}
+]},
+{name:"Read-Modify-Write", items:[
+{title:"fetch_add: shared counter", file:"b1_fetch_add.cpp", desc:"Operation: fetch_add. Many threads increment one counter without losing updates.",
+code:R`// fetch_add: lock-free counter shared by 4 threads.
+#include <atomic>
+#include <iostream>
+#include <thread>
+#include <vector>
+
+std::atomic<long> counter{0};
+
+int main() {
+    std::vector<std::thread> pool;
+    for (int i = 0; i < 4; ++i) {
+        pool.emplace_back([] {
+            for (int n = 0; n < 100000; ++n) {
+                // Read-modify-write as ONE indivisible step. Returns the old value.
+                counter.fetch_add(1, std::memory_order_relaxed);
+            }
+        });
+    }
+    for (auto& t : pool) t.join();
+
+    // Always 400000. With a plain long, updates would be lost.
+    std::cout << "counter = " << counter.load() << "\n";
+}`,
+ex:["<code>counter++</code> on a plain variable is read, add, write: two threads can read the same value and one update vanishes.","<code>fetch_add</code> does all three steps atomically and returns the <b>old</b> value.","Relaxed is fine because only the final total matters, not ordering with other data.","Real use: statistics, request counters, ID generators (<code>id = next.fetch_add(1)</code>)."]},
+{title:"exchange: first thread wins", file:"b2_exchange.cpp", desc:"Operation: exchange. Exactly one thread claims a one-time job.",
+code:R`// exchange: write a new value and learn what was there before, atomically.
+#include <atomic>
+#include <iostream>
+#include <thread>
+#include <vector>
+
+std::atomic<bool> claimed{false};
+
+int main() {
+    std::vector<std::thread> pool;
+    for (int id = 0; id < 4; ++id) {
+        pool.emplace_back([id] {
+            // Set to true and get the previous value in one step.
+            bool was_claimed = claimed.exchange(true, std::memory_order_acq_rel);
+            if (!was_claimed) {
+                // Only the thread that saw 'false' gets here.
+                std::printf("thread %d won and runs the one-time job\n", id);
+            }
+        });
+    }
+    for (auto& t : pool) t.join();
+}`,
+ex:["All four threads race to call <code>exchange(true)</code>. The atomic order decides who comes first.","Only the first caller receives <code>false</code> back, so exactly one thread prints the message.","<code>acq_rel</code> lets the winner see earlier work and publish its own.","Real use: claiming a task, grabbing ownership of a pointer, swapping in a new buffer."]},
+{title:"compare_exchange: lock-free max", file:"b3_cas_max.cpp", desc:"Operation: compare_exchange_weak in a retry loop. Update a shared maximum without a lock.",
+code:R`// CAS loop: keep the largest value seen by any thread.
+#include <atomic>
+#include <iostream>
+#include <thread>
+#include <vector>
+
+std::atomic<int> max_seen{0};
+
+void submit(int value) {
+    int current = max_seen.load(std::memory_order_relaxed);
+    // If max_seen still equals 'current', replace it with 'value'.
+    // If another thread changed it, 'current' is refreshed and we re-check.
+    while (current < value &&
+           !max_seen.compare_exchange_weak(current, value,
+                                           std::memory_order_release,
+                                           std::memory_order_relaxed)) {
+        // lost the race (or spurious failure): loop with the fresh 'current'
+    }
+}
+
+int main() {
+    std::vector<std::thread> pool;
+    for (int t = 0; t < 4; ++t)
+        pool.emplace_back([t] {
+            for (int j = 0; j < 100; ++j) submit(t * 100 + j);
+        });
+    for (auto& th : pool) th.join();
+    std::cout << "max = " << max_seen.load() << "\n";   // 399
+}`,
+ex:["CAS means: if the value equals <code>expected</code>, store <code>desired</code>. Otherwise copy the real value into <code>expected</code> and return false.","The loop stops early when another thread already stored something bigger (<code>current &lt; value</code> fails).","<code>_weak</code> may fail spuriously, which is fine inside a loop and can be faster on ARM.","Real use: lock-free stacks and queues, min/max trackers, any conditional update."]},
+{title:"fetch_sub: reference counting", file:"b4_fetch_sub.cpp", desc:"Operation: fetch_sub. Several workers share a resource and the last one to finish releases it.",
+code:R`// fetch_sub: a shared connection is closed by whichever worker releases it last.
+#include <atomic>
+#include <cstdio>
+#include <thread>
+#include <vector>
+
+struct Connection { ~Connection() { std::printf("connection closed (exactly once)\n"); } };
+
+Connection* conn = new Connection();
+std::atomic<int> refs{4};   // 4 workers share the connection
+
+int main() {
+    std::vector<std::thread> pool;
+    for (int id = 0; id < 4; ++id)
+        pool.emplace_back([id] {
+            std::printf("worker %d using connection\n", id);   // ...use conn here...
+            // fetch_sub returns the OLD value. Old == 1 means we were the last user.
+            if (refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                delete conn;   // acq_rel: we see every other worker's writes before deleting
+            }
+        });
+    for (auto& t : pool) t.join();
+}`,
+ex:["Each worker calls <code>fetch_sub(1)</code> when it is done with the connection. The returned <b>old</b> value tells it where it stands.","Exactly one worker sees <code>1</code> (the final release), so the connection is deleted once: no leak, no double delete.","<code>acq_rel</code> is needed: release publishes this worker's use of the object, acquire lets the last worker see everyone else's.","This is how <code>std::shared_ptr</code> manages its reference count. Real use: shared buffers, connection pools, cached objects."]},
+{title:"fetch_or / fetch_and: status bit flags", file:"b5_fetch_or_and.cpp", desc:"Operations: fetch_or + fetch_and. Workers report completion by setting and clearing bits in one shared mask.",
+code:R`// fetch_or / fetch_and: each worker sets its own bit when finished.
+#include <atomic>
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <vector>
+
+std::atomic<unsigned> done_mask{0};    // bit i = worker i has finished
+constexpr unsigned ALL_DONE = 0b1111;  // 4 workers -> bits 0..3
+
+int main() {
+    std::vector<std::thread> pool;
+    for (unsigned id = 0; id < 4; ++id)
+        pool.emplace_back([id] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50 * (id + 1)));  // fake work
+            // Set MY bit without disturbing the other workers' bits.
+            done_mask.fetch_or(1u << id, std::memory_order_release);
+        });
+
+    // Main waits until all four bits are set.
+    while ((done_mask.load(std::memory_order_acquire) & ALL_DONE) != ALL_DONE)
+        std::this_thread::yield();
+    std::cout << "all workers done, mask = " << done_mask.load() << "\n";   // 15
+
+    // fetch_and with an inverted mask clears one bit and returns the value before clearing.
+    unsigned before = done_mask.fetch_and(~(1u << 2), std::memory_order_acq_rel);
+    std::cout << "cleared worker 2: before = " << before
+              << ", now = " << done_mask.load() << "\n";   // 15 -> 11
+    for (auto& t : pool) t.join();
+}`,
+ex:["One <code>atomic&lt;unsigned&gt;</code> holds 32 independent yes/no flags, so four threads can update it without a lock.","<code>fetch_or(1u &lt;&lt; id)</code> turns on only this worker's bit. A plain <code>mask |= bit</code> from two threads could overwrite each other.","<code>fetch_and(~bit)</code> turns a bit off: the inverted mask keeps every other bit and clears just one.","Release on the set and acquire on the wait mean main also sees the results each worker produced. Real use: permission flags, task-done bitmaps, state masks."]},
+{title:"fetch_xor: toggle switch", file:"b6_fetch_xor.cpp", desc:"Operation: fetch_xor. Several admins flip a maintenance-mode switch and each learns what they did.",
+code:R`// fetch_xor: toggle a bit and learn its previous state in one atomic step.
+#include <atomic>
+#include <cstdio>
+#include <thread>
+#include <vector>
+
+std::atomic<unsigned> maintenance{0};   // bit 0: 1 = maintenance mode ON
+
+int main() {
+    std::vector<std::thread> pool;
+    for (int id = 0; id < 4; ++id)
+        pool.emplace_back([id] {
+            // XOR with 1 flips the bit; the returned OLD value says what it was before.
+            unsigned old = maintenance.fetch_xor(1u, std::memory_order_acq_rel);
+            std::printf("admin %d turned maintenance mode %s\n", id, (old & 1) ? "OFF" : "ON");
+        });
+    for (auto& t : pool) t.join();
+
+    // 4 flips = even number, so the switch is back to OFF.
+    std::printf("final state: %s\n", (maintenance.load() & 1) ? "ON" : "OFF");
+}`,
+ex:["<code>x ^ 1</code> flips a bit: 0 becomes 1 and 1 becomes 0. <code>fetch_xor</code> does that atomically, so no two admins can read the same state and both flip it the same way.","Because the old value is returned, every admin knows whether they switched it ON or OFF. The printed lines always alternate in logic, even if the output order varies.","After an even number of flips the switch returns to OFF, which is what the last line prints.","Real use: toggling a feature flag, flipping a ping-pong buffer index, parity or checksum bits."]}
+]},
+{name:"Flag, Wait & Utility", items:[
+{title:"atomic_flag spinlock", file:"c1_spinlock.cpp", desc:"Operation: test_and_set + clear. Build a simple lock from the smallest atomic.",
+code:R`// Spinlock built on std::atomic_flag.
+#include <atomic>
+#include <iostream>
+#include <thread>
+#include <vector>
+
+std::atomic_flag lock_flag = ATOMIC_FLAG_INIT;
+int shared_total = 0;   // plain int, protected by the spinlock
+
+void lock()   { while (lock_flag.test_and_set(std::memory_order_acquire)) {} }
+void unlock() { lock_flag.clear(std::memory_order_release); }
+
+int main() {
+    std::vector<std::thread> pool;
+    for (int i = 0; i < 4; ++i)
+        pool.emplace_back([] {
+            for (int n = 0; n < 50000; ++n) {
+                lock();            // acquire: we see the previous owner's writes
+                ++shared_total;    // critical section
+                unlock();          // release: we publish our writes
+            }
+        });
+    for (auto& t : pool) t.join();
+    std::cout << "total = " << shared_total << "\n";   // 200000
+}`,
+ex:["<code>test_and_set</code> sets the flag and returns the old value. If it was already true, someone else holds the lock, so we spin.","<code>acquire</code> on lock and <code>release</code> on unlock is exactly how a mutex orders memory.","Spinlocks burn CPU while waiting, so keep the critical section tiny.","Real use: very short critical sections where a mutex's sleep/wake cost is too high."]},
+{title:"wait / notify (C++20)", file:"c2_wait_notify.cpp", desc:"Operation: wait + notify_one. Sleep until a value changes instead of busy-spinning.",
+code:R`// wait/notify: block efficiently until an atomic changes. Needs C++20.
+#include <atomic>
+#include <chrono>
+#include <iostream>
+#include <thread>
+
+std::atomic<int> state{0};   // 0 = not ready, 1 = ready
+
+int main() {
+    std::thread waiter([] {
+        std::cout << "waiter: sleeping...\n";
+        // Blocks while state == 0. The thread sleeps instead of using CPU.
+        state.wait(0, std::memory_order_acquire);
+        std::cout << "waiter: woke up, state = " << state.load() << "\n";
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    state.store(1, std::memory_order_release);   // change the value first
+    state.notify_one();                          // then wake one waiter
+    waiter.join();
+}`,
+ex:["<code>wait(old)</code> returns only once the value is no longer <code>old</code>, so a missed notification cannot hang forever.","Always store the new value <b>before</b> calling <code>notify_one()</code>.","It replaces loops like <code>while (flag.load() == 0) {}</code> from the message-passing example.","Real use: worker threads waiting for work, latches, simple event signalling."]},
+{title:"Pointers, atomic_ref & lock-free check", file:"c3_pointer_ref_lockfree.cpp", desc:"Operations: atomic<T*>, atomic_ref and is_lock_free.",
+code:R`// Atomic pointer arithmetic, atomic_ref on a plain int, and is_lock_free. Needs C++20.
+#include <atomic>
+#include <iostream>
+
+struct Big { long a, b, c; };   // 24 bytes: usually too large for one hardware instruction
+
+int main() {
+    // 1. atomic pointer: fetch_add moves it by whole elements
+    int arr[4] = {10, 20, 30, 40};
+    std::atomic<int*> p{arr};
+    int* old = p.fetch_add(2);   // returns old pointer, p now points to arr[2]
+    std::cout << "old -> " << *old << ", new -> " << *p.load() << "\n";   // 10, 30
+
+    // 2. atomic_ref: atomic operations on an ordinary variable
+    int plain = 0;
+    {
+        std::atomic_ref<int> ref(plain);   // 'plain' must not be touched non-atomically meanwhile
+        ref.fetch_add(5);
+    }
+    std::cout << "plain = " << plain << "\n";   // 5
+
+    // 3. is_lock_free: does the atomic use real hardware instructions?
+    std::atomic<int> small{0};
+    std::atomic<Big> big{};
+    std::cout << "atomic<int> lock-free: " << small.is_lock_free() << "\n";   // 1
+    std::cout << "atomic<Big> lock-free: " << big.is_lock_free() << "\n";     // usually 0
+}`,
+ex:["<code>atomic&lt;T*&gt;::fetch_add(n)</code> does pointer arithmetic, so it advances by <code>n * sizeof(T)</code> bytes.","<code>atomic_ref</code> wraps an existing variable, handy when most code uses it normally and only one phase is concurrent.","Large structs fall back to a hidden lock, so check <code>is_lock_free()</code> when performance matters.","On some compilers, <code>atomic&lt;Big&gt;</code> may need <code>-latomic</code> when linking."]}
+]}
+]},
+{name:"Streams", cats:[
+{name:"Console I/O (cin/cout)", items:[
+{title:"cout, cerr, clog: output & formatting", file:"d1_cout_formatting.cpp", desc:"Members: put, write, width, fill, precision, setf, unsetf, flags, flush, plus manipulators.",
+code:R`// cout / cerr / clog: output members and formatting.
+#include <iostream>
+#include <iomanip>
+
+int main() {
+    std::ios::sync_with_stdio(false);          // faster I/O (do not mix with printf afterwards)
+
+    std::cout.put('A').put('\n');              // put(c): one character, chainable
+    std::cout.write("write: ignored", 7);      // write(buf, n): exactly n chars -> "write: "
+    std::cout << "\n";
+
+    // ---- member-function style formatting ----
+    std::cout.width(10);                       // width applies to the NEXT output only
+    std::cout.fill('*');                       // padding character
+    std::cout << 42 << "\n";                   // ********42
+    std::cout.fill(' ');
+    std::cout.precision(3);                    // significant digits (or decimals if fixed)
+    std::cout.setf(std::ios::fixed, std::ios::floatfield);
+    std::cout << 3.14159 << "\n";              // 3.142
+    std::cout.unsetf(std::ios::fixed);
+    std::cout.setf(std::ios::showpos);         // always show the + sign
+    std::cout << 5 << "\n";                    // +5
+    std::cout.unsetf(std::ios::showpos);
+    std::ios::fmtflags saved = std::cout.flags();   // flags(): read ALL format flags
+
+    // ---- manipulators: same features, nicer syntax ----
+    std::cout << std::boolalpha << true << " " << std::noboolalpha << true << "\n";  // true 1
+    std::cout << std::hex << std::showbase << 255 << " " << std::oct << 8 << std::dec << "\n";
+    std::cout << std::setw(8) << std::setfill('.') << std::left << "left" << "|\n";  // left....|
+    std::cout << std::setprecision(2) << std::scientific << 12345.678 << "\n";       // 1.23e+04
+    std::cout.flags(saved);                    // flags(f): restore everything in one call
+    std::cout << std::setfill(' ');
+
+    // ---- flushing ----
+    std::cout << "flush without newline" << std::flush << "\n";
+    std::cout << "endl = newline + flush" << std::endl;
+
+    // ---- the other output streams ----
+    std::cerr << "cerr: unbuffered, for errors\n";
+    std::clog << "clog: buffered, for logs\n";
+    std::cout << "good=" << std::cout.good() << "\n";   // stream state of cout
+}`,
+ex:["Members covered: <code>put</code>, <code>write</code>, <code>width</code>, <code>fill</code>, <code>precision</code>, <code>setf</code>, <code>unsetf</code>, <code>flags</code>, <code>flush</code>, <code>good</code>, <code>sync_with_stdio</code>, and the manipulators <code>setw</code>, <code>setfill</code>, <code>setprecision</code>, <code>boolalpha</code>, <code>hex</code>, <code>oct</code>, <code>showbase</code>, <code>left</code>, <code>scientific</code>, <code>endl</code>.","<code>width</code> resets after one output, while <code>fill</code>, <code>precision</code> and the flags stay until you change them. Saving <code>flags()</code> and restoring it is the clean way to avoid leaking formats.","<code>cerr</code> is unbuffered and <code>clog</code> is buffered. Both go to stderr, so you can separate them from normal output with <code>2&gt;err.txt</code>.","Prefer <code>'\\n'</code> over <code>endl</code> in loops: <code>endl</code> flushes every time and is slow."]},
+{title:"cin: extraction, validation & stream state", file:"d2_cin_state.cpp", desc:"Members: operator>>, good, eof, fail, bad, rdstate, clear, setstate, ignore, tie, exceptions.",
+code:R`// cin: formatted input, input validation and stream-state members.
+#include <iostream>
+#include <limits>
+#include <string>
+
+int main() {
+    std::cin.tie(&std::cout);                  // tie: cout is flushed before every cin read (default)
+
+    int age; double price; std::string name;
+    std::cout << "Enter: age price name  (e.g. 30 9.5 Ravi): ";
+    if (std::cin >> age >> price >> name)      // operator bool: true only if ALL reads worked
+        std::cout << "age=" << age << " price=" << price << " name=" << name << "\n";
+
+    // ---- the four state queries ----
+    std::cout << "good=" << std::cin.good() << " eof=" << std::cin.eof()
+              << " fail=" << std::cin.fail() << " bad=" << std::cin.bad()
+              << " rdstate=" << std::cin.rdstate() << "\n";
+
+    // ---- validation loop: keep asking until a number is typed ----
+    int n;
+    std::cout << "Enter an integer: ";
+    while (!(std::cin >> n)) {                 // typing letters sets failbit
+        std::cin.clear();                      // clear(): reset the error flags
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // drop the bad line
+        std::cout << "Not a number, try again: ";
+    }
+    std::cout << "n = " << n << "\n";
+
+    // ---- raise a flag manually, then recover ----
+    std::cin.setstate(std::ios::failbit);      // setstate: add a flag
+    std::cout << "after setstate fail=" << std::cin.fail() << "\n";
+    std::cin.clear();
+
+    // ---- exceptions(): make failures throw instead of setting flags ----
+    std::cin.exceptions(std::ios::failbit);
+    try {
+        int x;
+        std::cin.ignore(1000, '\n');
+        std::cout << "Type letters here to trigger the exception: ";
+        std::cin >> x;
+    } catch (const std::ios_base::failure& e) {
+        std::cout << "caught: " << e.what() << "\n";
+        std::cin.exceptions(std::ios::goodbit);   // turn throwing off before clear()
+        std::cin.clear();
+    }
+}`,
+ex:["Members covered: <code>operator&gt;&gt;</code>, <code>operator bool</code>, <code>good</code>, <code>eof</code>, <code>fail</code>, <code>bad</code>, <code>rdstate</code>, <code>clear</code>, <code>setstate</code>, <code>ignore</code>, <code>tie</code>, <code>exceptions</code>.","<code>cin &gt;&gt; a &gt;&gt; b</code> skips whitespace and stops at the next space or newline. A failed conversion sets <code>failbit</code> and every later read does nothing until you <code>clear()</code>.","The validation loop is the standard pattern: <code>clear()</code> the flags, then <code>ignore(max, '\\n')</code> to remove the bad text, then ask again.","Press Ctrl+Z then Enter (Windows) or Ctrl+D (Linux/macOS) to send EOF and watch <code>eof()</code> turn true."]},
+{title:"cin: characters, lines & raw reads", file:"d3_cin_chars_lines.cpp", desc:"Members: get, peek, putback, unget, getline, gcount, read, readsome, ignore.",
+code:R`// cin character and line input: get, peek, putback, unget, getline, gcount, read, readsome, ignore.
+#include <iostream>
+#include <string>
+
+int main() {
+    char buf[32];
+    std::cout << "Type exactly: Hello World   then Enter\n";
+
+    char first = std::cin.get();               // get(): read ONE char -> 'H'
+    char next  = static_cast<char>(std::cin.peek());   // peek(): look at the next char, do NOT consume -> 'e'
+    std::cin.putback(first);                   // putback(c): push 'H' back into the stream
+    std::cin.get(buf, 6);                      // get(buf, n): up to n-1 chars, stops BEFORE delimiter -> "Hello"
+    std::cout << "buf=" << buf << " gcount=" << std::cin.gcount()   // gcount: chars the last read took (5)
+              << " peeked=" << next << "\n";
+
+    std::cin.ignore(1);                        // ignore(n): discard n chars (the space)
+    std::cin.getline(buf, sizeof buf);         // getline(buf, n): rest of the line, '\n' is consumed -> "World"
+    std::cout << "buf=" << buf << " gcount=" << std::cin.gcount() << "\n";   // 6 (counts the '\n')
+
+    std::string line;
+    std::cout << "Type a full sentence: ";
+    std::getline(std::cin, line);              // free function: whole line into a std::string
+    std::cout << "line=[" << line << "]\n";
+
+    std::cout << "Type: abcdXYZ   then Enter: ";
+    char four[5] = {};
+    std::cin.read(four, 4);                    // read(buf, n): exactly n raw chars -> "abcd"
+    std::cout << "read=" << four << " gcount=" << std::cin.gcount() << "\n";
+
+    char x = std::cin.get();                   // 'X'
+    std::cin.unget();                          // unget(): step back one char
+    std::cout << "got " << x << ", after unget peek=" << static_cast<char>(std::cin.peek()) << "\n";
+
+    std::streamsize n = std::cin.readsome(buf, 2);   // readsome: only what is ALREADY buffered, never blocks
+    std::cout << "readsome returned " << n << " chars\n";
+    std::cin.ignore(1000, '\n');               // ignore(n, delim): skip through the end of the line
+}`,
+ex:["Members covered: <code>get()</code>, <code>get(c)</code>, <code>get(buf, n)</code>, <code>peek</code>, <code>putback</code>, <code>unget</code>, <code>getline(buf, n)</code>, <code>std::getline</code>, <code>gcount</code>, <code>read</code>, <code>readsome</code>, <code>ignore</code>.","<code>get(buf, n)</code> leaves the delimiter in the stream, while <code>getline</code> removes it. That difference is why <code>gcount</code> shows 5 then 6.","After <code>cin &gt;&gt; number</code> the newline is still waiting. Call <code>cin.ignore()</code> before <code>std::getline</code> or you will read an empty line.","<code>read</code> is for exact byte counts, <code>std::getline</code> is for text lines."]}
+]},
+{name:"File I/O (fstream)", items:[
+{title:"ofstream: writing & appending files", file:"e1_ofstream_write.cpp", desc:"Members: open, is_open, put, write, tellp, seekp, flush, close, open modes (app, trunc, binary).",
+code:R`// ofstream: write a text report, overwrite part of it, append, then write a binary file.
+// Run this BEFORE the ifstream program (it reads report.txt).
+#include <fstream>
+#include <iostream>
+
+struct Rec { int id; double amount; };
+
+int main() {
+    std::ofstream out("report.txt");           // constructor opens it (mode: out | trunc)
+    if (!out.is_open()) {                      // is_open(): did the open succeed?
+        std::cerr << "cannot open report.txt\n";
+        return 1;
+    }
+    out << "Sales report\n";                   // formatted output, same as cout
+    out.put('#').put('\n');                    // put(c): single character
+    out.write("raw bytes\n", 10);              // write(buf, n): n raw bytes
+    out << 3.14159 << "\n";
+    std::cout << "write position = " << out.tellp() << "\n";   // tellp(): where the next write goes
+
+    out.seekp(0, std::ios::beg);               // seekp: jump back to the start...
+    out << "SALES";                            // ...and overwrite the first 5 chars
+    out.flush();                               // flush(): force buffered data to disk now
+    out.close();                               // close(): flush + release the file
+
+    out.open("report.txt", std::ios::app);     // open(name, mode): app = always write at the end
+    out << "appended line\n";
+    std::cout << "good=" << out.good() << "\n";
+    out.close();
+
+    // ---- binary: write the raw bytes of a struct ----
+    Rec r{1, 99.5};
+    std::ofstream bin("data.bin", std::ios::binary | std::ios::trunc);
+    bin.write(reinterpret_cast<const char*>(&r), sizeof r);
+    bin.close();
+    std::cout << "created report.txt and data.bin\n";
+}`,
+ex:["Members covered: constructor, <code>open</code>, <code>is_open</code>, <code>operator&lt;&lt;</code>, <code>put</code>, <code>write</code>, <code>tellp</code>, <code>seekp</code>, <code>flush</code>, <code>good</code>, <code>close</code>, and the modes <code>out</code>, <code>trunc</code>, <code>app</code>, <code>binary</code>.","The default mode of <code>ofstream</code> is <code>out | trunc</code>, so an existing file is emptied. Use <code>ios::app</code> to keep its content and add to the end.","<code>binary</code> stops Windows from translating <code>\\n</code> into <code>\\r\\n</code>, which would corrupt raw struct bytes.","The destructor closes the file automatically (RAII), but calling <code>close()</code> lets you reopen the same object."]},
+{title:"ifstream: reading files", file:"e2_ifstream_read.cpp", desc:"Members: getline, >>, get, peek, unget, read, gcount, ignore, seekg, tellg, eof, clear, rdbuf.",
+code:R`// ifstream: read report.txt in several ways. Run the ofstream program first.
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <string>
+
+int main() {
+    std::ifstream in("report.txt");
+    if (!in) {                                 // operator!: true if the open failed
+        std::cerr << "run the ofstream program first\n";
+        return 1;
+    }
+
+    // 1. line by line until EOF
+    std::string line;
+    int no = 0;
+    while (std::getline(in, line))
+        std::cout << ++no << ": " << line << "\n";
+    std::cout << "eof=" << in.eof() << " fail=" << in.fail() << "\n";   // both 1 after the last line
+
+    // 2. file size: seek to the end and ask for the position
+    in.clear();                                // MUST clear eof/fail before seeking again
+    in.seekg(0, std::ios::end);                // seekg: move the READ position
+    std::streampos size = in.tellg();          // tellg: current read position = file size
+    std::cout << "file size = " << size << " bytes\n";
+
+    // 3. rewind and read in different styles
+    in.seekg(0);
+    std::string word;
+    in >> word;                                // operator>>: one whitespace-separated word
+    char c = in.get();                         // get(): next single char (the space)
+    char p = static_cast<char>(in.peek());     // peek(): look ahead without consuming
+    in.unget();                                // unget(): step back one char
+    in.ignore(100, '\n');                      // ignore(n, delim): skip the rest of this line
+    char buf[8] = {};
+    in.read(buf, 7);                           // read(buf, n): raw chars
+    std::cout << "word=" << word << " peek=" << p << " raw=" << buf
+              << " gcount=" << in.gcount() << "\n";
+
+    // 4. whole file into one string through iterators
+    in.clear();
+    in.seekg(0);
+    std::string all((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    std::cout << "whole file has " << all.size() << " chars\n";
+
+    in.close();
+}`,
+ex:["Members covered: constructor, <code>operator!</code>, <code>std::getline</code>, <code>operator&gt;&gt;</code>, <code>get</code>, <code>peek</code>, <code>unget</code>, <code>ignore</code>, <code>read</code>, <code>gcount</code>, <code>seekg</code>, <code>tellg</code>, <code>eof</code>, <code>fail</code>, <code>clear</code>, <code>close</code>.","<code>while (std::getline(in, line))</code> is the correct loop. Never write <code>while (!in.eof())</code>: it runs one extra time on the last read.","Reaching the end sets <code>eofbit</code> and <code>failbit</code>. Seeking does nothing until you <code>clear()</code> them.","<code>tellg</code> and <code>seekg</code> are the read position, and <code>tellp</code> and <code>seekp</code> are the write position."]},
+{title:"fstream: random access & in-place update", file:"e3_fstream_records.cpp", desc:"Read and write the same binary file, jump to any record, update it without rewriting the file.",
+code:R`// fstream: a tiny record database. Jump to record N, update it in place.
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+
+struct Product { int id; char name[16]; double price; };
+
+int main() {
+    const char* file = "products.dat";
+
+    {   // create the file with 3 fixed-size records
+        std::ofstream out(file, std::ios::binary | std::ios::trunc);
+        Product items[3] = { {1, "Pen", 10.0}, {2, "Book", 250.0}, {3, "Bag", 899.0} };
+        out.write(reinterpret_cast<const char*>(items), sizeof items);
+    }                                          // out goes out of scope and closes the file
+
+    // in | out | binary: one stream that can both read and write
+    std::fstream f(file, std::ios::in | std::ios::out | std::ios::binary);
+    if (!f.is_open()) { std::cerr << "open failed\n"; return 1; }
+
+    f.seekg(0, std::ios::end);
+    std::size_t count = static_cast<std::size_t>(f.tellg()) / sizeof(Product);
+    std::cout << "records = " << count << "\n";
+
+    // jump straight to record index 1 (no need to read record 0)
+    Product p;
+    f.seekg(1 * sizeof(Product), std::ios::beg);
+    f.read(reinterpret_cast<char*>(&p), sizeof p);
+    std::cout << "before: " << p.name << " " << p.price << "\n";
+
+    p.price *= 0.9;                            // 10% discount
+    f.seekp(1 * sizeof(Product), std::ios::beg);   // move the WRITE position to the same record
+    f.write(reinterpret_cast<const char*>(&p), sizeof p);
+    f.flush();
+
+    // read everything back
+    f.seekg(0);
+    while (f.read(reinterpret_cast<char*>(&p), sizeof p))   // loop ends when a read fails (EOF)
+        std::cout << p.id << " " << p.name << " " << p.price << "\n";
+
+    f.clear();                                 // clear EOF so the stream is usable again
+    f.close();
+    std::remove(file);                         // delete the demo file
+}`,
+ex:["Members covered: <code>std::fstream</code> with <code>in | out | binary</code>, <code>seekg</code>, <code>seekp</code>, <code>tellg</code>, <code>read</code>, <code>write</code>, <code>flush</code>, <code>clear</code>, <code>close</code>, <code>is_open</code>.","Fixed-size records make the position simple: <code>offset = index * sizeof(Record)</code>. That is how simple databases jump to row N.","Opening with <code>in | out</code> does not truncate the file. Without <code>in</code>, plain <code>out</code> would erase it.","This only works for trivially copyable structs. Never write a <code>std::string</code> or a pointer this way."]}
+]},
+{name:"String Streams", items:[
+{title:"istringstream: parsing text in memory", file:"f1_istringstream.cpp", desc:"Members: >>, getline with delimiter, str, clear, seekg, tellg, peek, eof, std::ws.",
+code:R`// istringstream: parse text that already lives in a std::string.
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+int main() {
+    // 1. whitespace separated values: like cin, but from a string
+    std::istringstream in("42 3.5 hello");
+    int i; double d; std::string s;
+    in >> i >> d >> s;
+    std::cout << i << " | " << d << " | " << s << " | eof=" << in.eof() << "\n";   // eof=1
+
+    // 2. CSV: getline with a delimiter splits on commas
+    std::istringstream csv("Ravi,29,Hyderabad");
+    std::string field;
+    std::vector<std::string> cols;
+    while (std::getline(csv, field, ','))
+        cols.push_back(field);
+    std::cout << cols.size() << " columns, city = " << cols[2] << "\n";
+
+    // 3. reuse the same object: str() replaces the text, clear() resets eof/fail
+    csv.str("Asha,31,Pune");
+    csv.clear();
+    std::getline(csv, field, ',');
+    std::cout << "name = " << field << ", position = " << csv.tellg() << "\n";   // tellg: 5
+    std::cout << "next char = " << static_cast<char>(csv.peek()) << "\n";        // '3'
+    csv.seekg(0);                              // seekg: rewind to the start
+
+    // 4. parse a multi-line log: one stream per line
+    std::istringstream lines("ERROR disk full\nINFO started\nERROR net down\n");
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::istringstream ls(line);
+        std::string level, msg;
+        ls >> level;
+        std::getline(ls >> std::ws, msg);      // std::ws skips the leading spaces
+        if (level == "ERROR") std::cout << "! " << msg << "\n";
+    }
+
+    // 5. strict validation: the number must use the WHOLE string
+    for (const char* text : { "123", "12abc" }) {
+        std::istringstream t(text);
+        int n;
+        bool ok = (t >> n) && (t >> std::ws).eof();
+        std::cout << text << (ok ? " is valid\n" : " is NOT valid\n");
+    }
+}`,
+ex:["Members covered: constructor, <code>operator&gt;&gt;</code>, <code>std::getline(stream, s, delim)</code>, <code>str(s)</code>, <code>clear</code>, <code>seekg</code>, <code>tellg</code>, <code>peek</code>, <code>eof</code>, <code>std::ws</code>.","An <code>istringstream</code> behaves like <code>cin</code> or an <code>ifstream</code>, so any parsing code written for those works on strings too, which makes it easy to unit-test.","Splitting each line into its own <code>istringstream</code> is the usual way to parse logs and config files.","The last check shows how to reject input such as <code>12abc</code> that a plain <code>&gt;&gt;</code> would partly accept."]},
+{title:"ostringstream & stringstream: building strings", file:"f2_ostringstream_stringstream.cpp", desc:"Members: <<, str, tellp, seekp, put, write, rdbuf, clear, plus type conversion and capturing cout.",
+code:R`// ostringstream / stringstream: build strings, convert types, capture cout.
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
+
+template <typename T>
+std::string to_str(const T& v) {               // any streamable type -> std::string
+    std::ostringstream o;
+    o << v;
+    return o.str();
+}
+
+int main() {
+    // 1. build a formatted string
+    std::ostringstream out;
+    out << "Invoice #" << 1001 << " total=" << std::fixed << std::setprecision(2) << 1234.5;
+    out.put('!');                              // put / write work here too
+    out.write(" (paid)", 7);
+    std::cout << out.str() << "\n";            // str(): get a copy of the buffer
+    std::cout << "length = " << out.tellp() << "\n";   // tellp: current write position
+
+    out.seekp(0);                              // seekp: go back and overwrite the start
+    out << "INVOICE";
+    std::cout << out.str() << "\n";
+
+    out.str("");                               // empty the buffer...
+    out.clear();                               // ...and reset the state to reuse the object
+    out << "fresh start";
+    std::cout << out.str() << "\n";
+
+    // 2. stringstream = read + write: convert between numbers and text
+    std::stringstream ss;
+    ss << 255 << " " << 3.5;                   // write numbers as text
+    int a; double b;
+    ss >> a >> b;                              // read them back as numbers
+    std::cout << "a=" << a << " b=" << b << "\n";
+
+    ss.str(""); ss.clear();
+    ss << std::hex << 255;                     // 255 -> "ff"
+    std::cout << "hex text = " << ss.str() << "\n";
+
+    // 3. capture cout: rdbuf swaps the underlying buffer
+    std::ostringstream capture;
+    std::streambuf* old = std::cout.rdbuf(capture.rdbuf());   // cout now writes into 'capture'
+    std::cout << "hidden text";
+    std::cout.rdbuf(old);                      // ALWAYS restore it
+    std::cout << "captured: [" << capture.str() << "]\n";
+
+    std::cout << to_str(3.14) << " " << to_str(42) << " " << to_str(true) << "\n";
+}`,
+ex:["Members covered: <code>operator&lt;&lt;</code>, <code>put</code>, <code>write</code>, <code>str()</code>, <code>str(s)</code>, <code>tellp</code>, <code>seekp</code>, <code>clear</code>, <code>operator&gt;&gt;</code> on <code>stringstream</code>, <code>rdbuf</code>, and the manipulators <code>fixed</code>, <code>setprecision</code>, <code>hex</code>.","<code>ostringstream</code> is write-only, <code>istringstream</code> is read-only and <code>stringstream</code> does both. Pick the narrowest one that fits.","Calling <code>str(\"\")</code> empties the text, but only <code>clear()</code> resets error flags, so call both when reusing a stream.","Redirecting with <code>rdbuf</code> is a handy way to test functions that print to <code>cout</code>. Always restore the old buffer or later output will vanish."]}
+]}
+]}
+];
+
+const OUT = {
+"a1_message_passing.cpp":{o:`consumer got 42`},
+"a2_stop_flag.cpp":{o:`worker looped 187432615 times`,n:"The loop count is different on every run and machine."},
+"b1_fetch_add.cpp":{o:`counter = 400000`},
+"b2_exchange.cpp":{o:`thread 2 won and runs the one-time job`,n:"Exactly one line is printed, but which thread wins changes from run to run."},
+"b3_cas_max.cpp":{o:`max = 399`},
+"b4_fetch_sub.cpp":{o:`worker 0 using connection
+worker 2 using connection
+worker 1 using connection
+worker 3 using connection
+connection closed (exactly once)`,n:"The order of the worker lines varies, but the closing line always appears once and last."},
+"b5_fetch_or_and.cpp":{o:`all workers done, mask = 15
+cleared worker 2: before = 15, now = 11`},
+"b6_fetch_xor.cpp":{o:`admin 0 turned maintenance mode ON
+admin 1 turned maintenance mode OFF
+admin 2 turned maintenance mode ON
+admin 3 turned maintenance mode OFF
+final state: OFF`,n:"Which admin number gets which line varies, but ON and OFF always alternate and the final state is OFF."},
+"c1_spinlock.cpp":{o:`total = 200000`},
+"c2_wait_notify.cpp":{o:`waiter: sleeping...
+waiter: woke up, state = 1`,n:"The second line appears about 200 ms after the first."},
+"c3_pointer_ref_lockfree.cpp":{o:`old -> 10, new -> 30
+plain = 5
+atomic<int> lock-free: 1
+atomic<Big> lock-free: 0`,n:"The last line is usually 0 because a 24-byte struct does not fit a hardware atomic."},
+"d1_cout_formatting.cpp":{o:`A
+write: 
+********42
+3.142
++5
+true 1
+0xff 010
+left....|
+1.23e+04
+flush without newline
+endl = newline + flush
+cerr: unbuffered, for errors
+good=1
+clog: buffered, for logs`,n:"cerr and clog go to stderr. Because clog is buffered, its line may appear later than shown if your terminal mixes stdout and stderr."},
+"d2_cin_state.cpp":{o:`Enter: age price name  (e.g. 30 9.5 Ravi): 30 9.5 Ravi
+age=30 price=9.5 name=Ravi
+good=1 eof=0 fail=0 bad=0 rdstate=0
+Enter an integer: abc
+Not a number, try again: 42
+n = 42
+after setstate fail=1
+Type letters here to trigger the exception: xyz
+caught: basic_ios::clear: iostream error`,n:"Sample session: the text after each prompt is what you type. The exception message differs between compilers (MSVC words it differently)."},
+"d3_cin_chars_lines.cpp":{o:`Type exactly: Hello World   then Enter
+Hello World
+buf=Hello gcount=5 peeked=e
+buf=World gcount=6
+Type a full sentence: I love C++ streams
+line=[I love C++ streams]
+Type: abcdXYZ   then Enter: abcdXYZ
+read=abcd gcount=4
+got X, after unget peek=X
+readsome returned 2 chars`,n:"Sample session: the lines you type are shown after each prompt. The readsome result depends on the library buffering (it can be 0 on some compilers)."},
+"e1_ofstream_write.cpp":{o:`write position = 33
+good=1
+created report.txt and data.bin
+
+--- contents of report.txt afterwards ---
+SALES report
+#
+raw bytes
+3.14159
+appended line`,n:"On Windows the text-mode file stores each newline as two bytes, so the write position prints 37 instead of 33."},
+"e2_ifstream_read.cpp":{o:`1: SALES report
+2: #
+3: raw bytes
+4: 3.14159
+5: appended line
+eof=1 fail=1
+file size = 47 bytes
+word=SALES peek=r raw=#
+raw b gcount=7
+whole file has 47 chars`,n:"This reads the report.txt written by the ofstream program. The raw= text spans two lines because it includes the newline after the # character. On Windows the file holds 52 bytes (each newline is stored as two bytes), so the file size line prints 52."},
+"e3_fstream_records.cpp":{o:`records = 3
+before: Book 250
+1 Pen 10
+2 Book 225
+3 Bag 899`},
+"f1_istringstream.cpp":{o:`42 | 3.5 | hello | eof=1
+3 columns, city = Hyderabad
+name = Asha, position = 5
+next char = 3
+! disk full
+! net down
+123 is valid
+12abc is NOT valid`},
+"f2_ostringstream_stringstream.cpp":{o:`Invoice #1001 total=1234.50! (paid)
+length = 35
+INVOICE #1001 total=1234.50! (paid)
+fresh start
+a=255 b=3.5
+hex text = ff
+captured: [hidden text]
+3.14 42 1`}
+};
+let ti = 0, CATS = TOPICS[0].cats;   // current topic and its categories
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const RE = /(\/\/.*)|("(?:\\.|[^"\\])*")|(^#\w+(?:\s+&lt;[\w.]+&gt;)?)|\b(\d+\w*)\b|\b(std::\w+|ATOMIC_FLAG_INIT)|\b(const|constexpr|auto|int|bool|long|unsigned|void|struct|while|if|else|for|do|return|true|false|char|double|try|catch|template|typename|new|delete|static_cast|reinterpret_cast)\b/gm;
+function hl(src){
+  return esc(src).replace(RE,(m,c,s,p,n,t,k)=>{
+    const cls = c?"c":s?"s":p?"p":n?"n":t?"t":"k";
+    return '<span class="'+cls+'">'+m+'</span>';
+  });
+}
+let ci = 0, pi = 0;
+function drawTopics(){
+  $("topics").innerHTML = TOPICS.map((t,i)=>{
+    const n = t.cats.reduce((a,c)=>a+c.items.length,0);
+    return '<button class="topic'+(i===ti?' on':'')+'" data-i="'+i+'">'+esc(t.name)+'<span class="badge">'+n+'</span></button>';
+  }).join("");
+  $("topics").querySelectorAll(".topic").forEach(b=>b.onclick=()=>{ti=+b.dataset.i;CATS=TOPICS[ti].cats;ci=0;pi=0;draw();});
+}
+function drawTabs(){
+  $("tabs").innerHTML = CATS.map((c,i)=>'<button class="tab'+(i===ci?' on':'')+'" data-i="'+i+'">'+esc(c.name)+'<span class="badge">'+c.items.length+'</span></button>').join("");
+  $("tabs").querySelectorAll(".tab").forEach(b=>b.onclick=()=>{ci=+b.dataset.i;pi=0;draw();});
+}
+function drawPills(){
+  $("pills").innerHTML = CATS[ci].items.map((x,i)=>'<button class="pill'+(i===pi?' on':'')+'" data-i="'+i+'">'+esc(x.title)+'</button>').join("");
+  $("pills").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{pi=+b.dataset.i;draw();});
+}
+function draw(){
+  const x = CATS[ci].items[pi];
+  drawTopics(); drawTabs(); drawPills();
+  $("t").textContent = x.title; $("d").textContent = x.desc; $("f").textContent = x.file;
+  const lines = x.code.split("\n");
+  $("g").textContent = lines.map((_,i)=>i+1).join("\n");
+  $("code").innerHTML = hl(x.code);
+  $("ex").innerHTML = x.ex.map(e=>"<li>"+e+"</li>").join("");
+  const ver = x.code.indexOf("C++20")>-1 ? "c++20" : "c++17";
+  $("run").textContent = "g++ -std="+ver+" -O2 -pthread "+x.file+" -o demo && ./demo";
+  $("cp").textContent = "Copy code";
+  const o = OUT[x.file];
+  $("out").textContent = o ? o.o : "";
+  $("outnote").textContent = o && o.n ? "Note: " + o.n : "";
+}
+$("cp").onclick = async () => {
+  const text = CATS[ci].items[pi].code;   // raw source: no line numbers, no HTML
+  try { await navigator.clipboard.writeText(text); }
+  catch(e){
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta);
+    ta.select(); try{document.execCommand("copy");}catch(_){} ta.remove();
+  }
+  $("cp").textContent = "Copied!";
+  setTimeout(()=>{$("cp").textContent="Copy code";},1500);
+};
+draw();
+</script>
+</body>
+</html>
